@@ -336,6 +336,11 @@ interface TelemetryPanelProps {
   onExtractVisible?: () => void;
   onExtractSelected?: () => void;
   onExtractAll?: () => void;
+  stats?: {
+    totalEvents: number;
+    visibleRows: number;
+    selectedRows: number;
+  };
 }
 
 const TelemetryPanel = ({
@@ -345,6 +350,7 @@ const TelemetryPanel = ({
   onExtractVisible,
   onExtractSelected,
   onExtractAll,
+  stats,
 }: TelemetryPanelProps) => {
   const [newestEventId, setNewestEventId] = useState<string | null>(null);
   const prevEventsLengthRef = useRef(0);
@@ -370,30 +376,63 @@ const TelemetryPanel = ({
     <div
       className={`bg-slate-800/30 rounded-xl border border-slate-700/50 ${height} flex flex-col`}
     >
-      <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-          <span className="relative flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-          </span>
-          Telemetry Stream
-          {newestEventId && (
-            <span
-              className="text-amber-400"
-              style={{ animation: "bellRing 0.8s ease-in-out" }}
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-              </svg>
+      <div className="p-3 lg:p-4 border-b border-slate-700/50">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-base lg:text-lg font-semibold text-white flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5 lg:h-3 lg:w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 lg:h-3 lg:w-3 bg-emerald-500"></span>
             </span>
-          )}
-        </h2>
-        <button
-          onClick={clearTelemetry}
-          className="text-xs text-slate-400 hover:text-white transition-colors"
-        >
-          Clear
-        </button>
+            Telemetry
+            {newestEventId && (
+              <span
+                className="text-amber-400"
+                style={{ animation: "bellRing 0.8s ease-in-out" }}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+                </svg>
+              </span>
+            )}
+          </h2>
+          <button
+            onClick={clearTelemetry}
+            className="text-xs text-slate-400 hover:text-white transition-colors"
+          >
+            Clear
+          </button>
+        </div>
+
+        {/* Stats row - shown when stats prop is provided */}
+        {stats && (
+          <div className="flex gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span className="text-slate-400">Events:</span>
+              <span className="font-bold text-blue-400">
+                {stats.totalEvents}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span className="text-slate-400">Visible:</span>
+              <span className="font-bold text-emerald-400">
+                {stats.visibleRows}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span className="text-slate-400">Selected:</span>
+              <span className="font-bold text-purple-400">
+                {stats.selectedRows}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}
@@ -465,17 +504,17 @@ const TelemetryPanel = ({
                   d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
                 />
               </svg>
-              Send Full
+              Send Full State
             </button>
           )}
         </div>
       )}
 
-      <div className="flex-1 overflow-auto p-4 space-y-3">
+      <div className="flex-1 overflow-auto p-3 lg:p-4 space-y-3">
         {telemetryEvents.length === 0 ? (
           <div className="text-center text-slate-500 py-8">
             <svg
-              className="w-12 h-12 mx-auto mb-3 opacity-50"
+              className="w-10 h-10 lg:w-12 lg:h-12 mx-auto mb-3 opacity-50"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -487,7 +526,7 @@ const TelemetryPanel = ({
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
               />
             </svg>
-            <p>Click a button above to extract telemetry</p>
+            <p className="text-sm">Click a button above to extract telemetry</p>
           </div>
         ) : (
           telemetryEvents.map((event) => (
@@ -1170,18 +1209,23 @@ function App() {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header - Compact on mobile */}
       <header className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-[1600px] mx-auto px-6 py-1">
+        <div className="max-w-[1600px] mx-auto px-4 lg:px-6 py-2 lg:py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-slate-400 bg-black text-sm mt-1">
-                Real-time data extraction and telemetry monitoring
-              </p>
+            <div className="flex items-center gap-2 lg:gap-3">
+              <h1 className="text-lg lg:text-2xl font-bold text-white">
+                <span className="bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                  AG Grid Telemetry
+                </span>
+              </h1>
+              <span className="hidden sm:inline text-xs font-normal text-slate-400 bg-slate-800 px-2 py-0.5 rounded">
+                MCP Demo
+              </span>
             </div>
 
-            {/* Stats */}
-            <div className="flex gap-6">
+            {/* Stats - Hidden on mobile, shown on desktop */}
+            <div className="hidden md:flex gap-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">
                   {stats.totalEvents}
@@ -1201,6 +1245,16 @@ function App() {
                 <div className="text-xs text-slate-400">Selected</div>
               </div>
             </div>
+
+            {/* Compact stats on mobile */}
+            <div className="flex md:hidden gap-3 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="font-bold text-blue-400">
+                  {stats.totalEvents}
+                </span>
+                <span className="text-slate-500">events</span>
+              </div>
+            </div>
           </div>
         </div>
       </header>
@@ -1212,10 +1266,10 @@ function App() {
           {/* Left Column - Grid */}
           <div className="lg:col-span-2 space-y-4">
             {/* AG Grid */}
-            <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-x-auto">
               <div
                 className="ag-theme-alpine-dark"
-                style={{ height: 500, width: "100%" }}
+                style={{ height: 500, minWidth: 700 }}
               >
                 <AgGridReact<RowData>
                   ref={gridRef}
@@ -1242,6 +1296,7 @@ function App() {
                 onExtractVisible={extractVisibleRowsData}
                 onExtractSelected={extractSelectedRowsData}
                 onExtractAll={extractAllGridData}
+                stats={stats}
               />
             </div>
 
