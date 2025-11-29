@@ -221,9 +221,22 @@ const generateSampleData = (): RowData[] => [
 // ============================================
 interface EventCardProps {
   event: TelemetryEvent;
+  isNew?: boolean;
 }
 
-const EventCard = ({ event }: EventCardProps) => {
+const EventCard = ({ event, isNew = false }: EventCardProps) => {
+  const [showAnimation, setShowAnimation] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Trigger animation when isNew becomes true
+  React.useEffect(() => {
+    if (isNew) {
+      setShowAnimation(true);
+      const timer = setTimeout(() => setShowAnimation(false), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [isNew]);
+
   const getEventColor = (type: string): string => {
     const colors: Record<string, string> = {
       grid_initialized: "bg-emerald-500",
@@ -236,15 +249,72 @@ const EventCard = ({ event }: EventCardProps) => {
     return colors[type] || "bg-gray-500";
   };
 
+  const getBorderColor = (type: string): string => {
+    const colors: Record<string, string> = {
+      grid_initialized: "#10b981",
+      visible_rows_extracted: "#3b82f6",
+      selected_rows_extracted: "#a855f7",
+      full_grid_state_extracted: "#f59e0b",
+      row_selected: "#6366f1",
+      grid_scrolled: "#64748b",
+    };
+    return colors[type] || "#6b7280";
+  };
+
   return (
-    <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 hover:border-slate-600 transition-colors">
+    <div
+      ref={cardRef}
+      className={`
+        bg-slate-800/50 rounded-lg p-3 border transition-all duration-300
+        ${
+          showAnimation
+            ? "border-2"
+            : "border border-slate-700/50 hover:border-slate-600"
+        }
+      `}
+      style={
+        showAnimation
+          ? {
+              animation: "eventSlideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)",
+              borderColor: getBorderColor(event.eventType),
+              boxShadow: `0 0 20px ${getBorderColor(event.eventType)}40, 0 0 40px ${getBorderColor(event.eventType)}20`,
+            }
+          : undefined
+      }
+    >
       <div className="flex items-center gap-2 mb-2">
-        <span
-          className={`w-2 h-2 rounded-full ${getEventColor(event.eventType)}`}
-        />
+        <span className="relative flex h-2.5 w-2.5">
+          {showAnimation && (
+            <span
+              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${getEventColor(event.eventType)}`}
+            />
+          )}
+          <span
+            className={`relative inline-flex rounded-full h-2.5 w-2.5 ${getEventColor(event.eventType)}`}
+          />
+        </span>
         <span className="text-sm font-semibold text-white">
           {event.eventType}
         </span>
+        {showAnimation && (
+          <span
+            className="ml-auto flex items-center gap-1 text-xs font-bold px-1.5 py-0.5 rounded"
+            style={{
+              backgroundColor: `${getBorderColor(event.eventType)}30`,
+              color: getBorderColor(event.eventType),
+              animation: "badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+            }}
+          >
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            NEW
+          </span>
+        )}
       </div>
       <div className="text-xs text-slate-400 mb-2">
         {new Date(event.timestamp).toLocaleTimeString()}
@@ -270,6 +340,26 @@ const TelemetryPanel = ({
   clearTelemetry,
   height = "h-[700px]",
 }: TelemetryPanelProps) => {
+  const [newestEventId, setNewestEventId] = useState<string | null>(null);
+  const prevEventsLengthRef = useRef(0);
+
+  // Track when a new event is added
+  React.useEffect(() => {
+    if (
+      telemetryEvents.length > prevEventsLengthRef.current &&
+      telemetryEvents.length > 0
+    ) {
+      setNewestEventId(telemetryEvents[0].id);
+      // Clear the "new" state after animation completes
+      const timer = setTimeout(() => setNewestEventId(null), 2500);
+      prevEventsLengthRef.current = telemetryEvents.length;
+      return () => clearTimeout(timer);
+    }
+    if (telemetryEvents.length === 0) {
+      prevEventsLengthRef.current = 0;
+    }
+  }, [telemetryEvents]);
+
   return (
     <div
       className={`bg-slate-800/30 rounded-xl border border-slate-700/50 ${height} flex flex-col`}
@@ -281,6 +371,16 @@ const TelemetryPanel = ({
             <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
           </span>
           Telemetry Stream
+          {newestEventId && (
+            <span
+              className="text-amber-400"
+              style={{ animation: "bellRing 0.8s ease-in-out" }}
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
+              </svg>
+            </span>
+          )}
         </h2>
         <button
           onClick={clearTelemetry}
@@ -310,7 +410,11 @@ const TelemetryPanel = ({
           </div>
         ) : (
           telemetryEvents.map((event) => (
-            <EventCard key={event.id} event={event} />
+            <EventCard
+              key={event.id}
+              event={event}
+              isNew={event.id === newestEventId}
+            />
           ))
         )}
       </div>
@@ -943,6 +1047,48 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Global CSS Animations for Telemetry */}
+      <style>{`
+        @keyframes eventSlideIn {
+          0% {
+            opacity: 0;
+            transform: translateX(-30px) scale(0.9);
+          }
+          50% {
+            transform: translateX(5px) scale(1.02);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+        @keyframes badgePop {
+          0% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          50% {
+            transform: scale(1.2);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        @keyframes bellRing {
+          0%, 100% { transform: rotate(0deg); }
+          10% { transform: rotate(14deg); }
+          20% { transform: rotate(-14deg); }
+          30% { transform: rotate(10deg); }
+          40% { transform: rotate(-10deg); }
+          50% { transform: rotate(6deg); }
+          60% { transform: rotate(-6deg); }
+          70% { transform: rotate(2deg); }
+          80% { transform: rotate(-2deg); }
+          90% { transform: rotate(0deg); }
+        }
+      `}</style>
+
       {/* Header */}
       <header className="border-b border-slate-700/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-[1600px] mx-auto px-6 py-4">
