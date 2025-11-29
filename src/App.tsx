@@ -333,12 +333,18 @@ interface TelemetryPanelProps {
   telemetryEvents: TelemetryEvent[];
   clearTelemetry: () => void;
   height?: string;
+  onExtractVisible?: () => void;
+  onExtractSelected?: () => void;
+  onExtractAll?: () => void;
 }
 
 const TelemetryPanel = ({
   telemetryEvents,
   clearTelemetry,
   height = "h-[700px]",
+  onExtractVisible,
+  onExtractSelected,
+  onExtractAll,
 }: TelemetryPanelProps) => {
   const [newestEventId, setNewestEventId] = useState<string | null>(null);
   const prevEventsLengthRef = useRef(0);
@@ -390,6 +396,81 @@ const TelemetryPanel = ({
         </button>
       </div>
 
+      {/* Action Buttons */}
+      {(onExtractVisible || onExtractSelected || onExtractAll) && (
+        <div className="p-3 border-b border-slate-700/50 flex flex-wrap gap-2">
+          {onExtractVisible && (
+            <button
+              onClick={onExtractVisible}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/25 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              Send Visible
+            </button>
+          )}
+          {onExtractSelected && (
+            <button
+              onClick={onExtractSelected}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-purple-500/25 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              Send Selected
+            </button>
+          )}
+          {onExtractAll && (
+            <button
+              onClick={onExtractAll}
+              className="flex-1 min-w-[100px] px-3 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-amber-500/25 flex items-center justify-center gap-1.5"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
+                />
+              </svg>
+              Send Full
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex-1 overflow-auto p-4 space-y-3">
         {telemetryEvents.length === 0 ? (
           <div className="text-center text-slate-500 py-8">
@@ -406,7 +487,7 @@ const TelemetryPanel = ({
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
               />
             </svg>
-            <p>Interact with the grid to see telemetry events</p>
+            <p>Click a button above to extract telemetry</p>
           </div>
         ) : (
           telemetryEvents.map((event) => (
@@ -1136,77 +1217,8 @@ function App() {
       <main className="max-w-[1600px] mx-auto px-6 py-6">
         {/* Desktop: 3-column layout with sidebar | Mobile: single column */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Grid & Buttons */}
+          {/* Left Column - Grid */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Action Buttons */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={extractVisibleRowsData}
-                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-blue-500/25 flex items-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </svg>
-                Extract Visible Rows
-              </button>
-
-              <button
-                onClick={extractSelectedRowsData}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-purple-500/25 flex items-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                Extract Selected Rows
-              </button>
-
-              <button
-                onClick={extractAllGridData}
-                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-medium rounded-lg transition-all hover:shadow-lg hover:shadow-amber-500/25 flex items-center gap-2"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-                  />
-                </svg>
-                Extract Full Grid State
-              </button>
-            </div>
-
             {/* AG Grid */}
             <div className="bg-slate-800/50 rounded-xl border border-slate-700/50 overflow-hidden">
               <div
@@ -1234,7 +1246,10 @@ function App() {
               <TelemetryPanel
                 telemetryEvents={telemetryEvents}
                 clearTelemetry={clearTelemetry}
-                height="h-[350px]"
+                height="h-[400px]"
+                onExtractVisible={extractVisibleRowsData}
+                onExtractSelected={extractSelectedRowsData}
+                onExtractAll={extractAllGridData}
               />
             </div>
 
@@ -1298,6 +1313,9 @@ function App() {
                 telemetryEvents={telemetryEvents}
                 clearTelemetry={clearTelemetry}
                 height="h-[700px]"
+                onExtractVisible={extractVisibleRowsData}
+                onExtractSelected={extractSelectedRowsData}
+                onExtractAll={extractAllGridData}
               />
             </div>
           </div>
