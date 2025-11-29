@@ -1,7 +1,6 @@
-import { useCallback, useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
-import from 'App.css';
 import type {
   ColDef,
   GridApi,
@@ -23,13 +22,7 @@ interface TelemetryEvent {
   data: unknown;
 }
 
-interface TelemetryService {
-  events: TelemetryEvent[];
-  send: (eventType: string, data: unknown) => TelemetryEvent;
-  clear: () => void;
-}
-
-const createTelemetryService = (): TelemetryService => {
+const createTelemetryService = () => {
   const events: TelemetryEvent[] = [];
 
   return {
@@ -264,6 +257,452 @@ const EventCard = ({ event }: EventCardProps) => {
 };
 
 // ============================================
+// TELEMETRY PANEL COMPONENT
+// ============================================
+interface TelemetryPanelProps {
+  telemetryEvents: TelemetryEvent[];
+  clearTelemetry: () => void;
+  height?: string;
+}
+
+const TelemetryPanel = ({
+  telemetryEvents,
+  clearTelemetry,
+  height = "h-[700px]",
+}: TelemetryPanelProps) => {
+  return (
+    <div
+      className={`bg-slate-800/30 rounded-xl border border-slate-700/50 ${height} flex flex-col`}
+    >
+      <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          Telemetry Stream
+        </h2>
+        <button
+          onClick={clearTelemetry}
+          className="text-xs text-slate-400 hover:text-white transition-colors"
+        >
+          Clear
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-auto p-4 space-y-3">
+        {telemetryEvents.length === 0 ? (
+          <div className="text-center text-slate-500 py-8">
+            <svg
+              className="w-12 h-12 mx-auto mb-3 opacity-50"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+              />
+            </svg>
+            <p>Interact with the grid to see telemetry events</p>
+          </div>
+        ) : (
+          telemetryEvents.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// CODE EXAMPLES DATA
+// ============================================
+const codeExamples: Record<
+  string,
+  { title: string; description: string; code: string }
+> = {
+  visible: {
+    title: "Extract Visible Rows",
+    description:
+      "Get data from rows currently rendered in the viewport. Useful for tracking what users are actually seeing.",
+    code: `// Get the viewport boundaries
+const firstRow = gridApi.getFirstDisplayedRowIndex();
+const lastRow = gridApi.getLastDisplayedRowIndex();
+
+// Iterate through visible rows
+const visibleRows: RowData[] = [];
+for (let i = firstRow; i <= lastRow; i++) {
+  const rowNode = gridApi.getDisplayedRowAtIndex(i);
+  if (rowNode?.data) {
+    visibleRows.push(rowNode.data);
+  }
+}
+
+// Send telemetry with visible data
+sendTelemetry('visible_rows_extracted', {
+  viewport: { firstRowIndex: firstRow, lastRowIndex: lastRow },
+  visibleRows: visibleRows,
+  visibleProductIds: visibleRows.map(r => r.id),
+});`,
+  },
+  selected: {
+    title: "Extract Selected Rows",
+    description:
+      "Get data from rows that the user has selected via checkboxes. Perfect for batch operations telemetry.",
+    code: `// Get all selected rows in one call
+const selectedRows = gridApi.getSelectedRows();
+
+// Send telemetry with selection data
+sendTelemetry('selected_rows_extracted', {
+  selectedCount: selectedRows.length,
+  selectedRows: selectedRows,
+  selectedIds: selectedRows.map(row => row.id),
+  totalSelectedValue: selectedRows.reduce(
+    (sum, r) => sum + (r.price * r.quantity),
+    0
+  ),
+});`,
+  },
+  fullState: {
+    title: "Extract Full Grid State",
+    description:
+      "Capture complete grid state including all data, column configuration, active filters, and sort order.",
+    code: `// Extract all row data
+const allData: RowData[] = [];
+gridApi.forEachNode(node => {
+  if (node.data) {
+    allData.push(node.data);
+  }
+});
+
+// Get column state (widths, visibility, pinning)
+const columnState = gridApi.getColumnState();
+
+// Get active filters
+const filterModel = gridApi.getFilterModel();
+
+// Send comprehensive telemetry
+sendTelemetry('full_grid_state_extracted', {
+  gridMetadata: {
+    totalRows: allData.length,
+    displayedRows: gridApi.getDisplayedRowCount(),
+  },
+  allData: allData,
+  columnState: columnState.map(col => ({
+    colId: col.colId,
+    width: col.width,
+    hide: col.hide,
+    sort: col.sort,
+    pinned: col.pinned,
+  })),
+  activeFilters: filterModel,
+  viewport: {
+    firstRow: gridApi.getFirstDisplayedRowIndex(),
+    lastRow: gridApi.getLastDisplayedRowIndex(),
+  },
+});`,
+  },
+  scroll: {
+    title: "Track Scroll Events",
+    description:
+      "Monitor user scrolling behavior with debounced events to avoid flooding your telemetry pipeline.",
+    code: `// Debounce scroll events to avoid spam
+const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+const onBodyScroll = useCallback((event: BodyScrollEvent) => {
+  if (!gridApi) return;
+
+  // Clear previous timeout
+  if (scrollTimeoutRef.current) {
+    clearTimeout(scrollTimeoutRef.current);
+  }
+
+  // Debounce: wait 300ms after scrolling stops
+  scrollTimeoutRef.current = setTimeout(() => {
+    const firstRow = gridApi.getFirstDisplayedRowIndex();
+    const lastRow = gridApi.getLastDisplayedRowIndex();
+
+    sendTelemetry('grid_scrolled', {
+      scrollDirection: event.direction,
+      viewport: {
+        firstRow,
+        lastRow,
+        visibleRowCount: lastRow - firstRow + 1,
+      },
+      scrollPosition: {
+        top: event.top,
+        left: event.left,
+      },
+    });
+  }, 300);
+}, [gridApi]);
+
+// Attach to AgGridReact
+<AgGridReact onBodyScroll={onBodyScroll} />`,
+  },
+  telemetry: {
+    title: "Telemetry Service",
+    description:
+      "A simple telemetry service that batches events and sends them to your backend API.",
+    code: `interface TelemetryEvent {
+  id: string;
+  eventType: string;
+  timestamp: string;
+  data: unknown;
+}
+
+const createTelemetryService = () => {
+  const events: TelemetryEvent[] = [];
+
+  return {
+    events,
+
+    send: (eventType: string, data: unknown) => {
+      const event: TelemetryEvent = {
+        id: crypto.randomUUID(),
+        eventType,
+        timestamp: new Date().toISOString(),
+        data,
+      };
+
+      events.unshift(event);
+      console.log('📊 Telemetry:', event);
+
+      // Send to backend
+      fetch('/api/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(event),
+      });
+
+      return event;
+    },
+
+    flush: async () => {
+      // Batch send all queued events
+      await fetch('/api/telemetry/batch', {
+        method: 'POST',
+        body: JSON.stringify({ events }),
+      });
+    },
+  };
+};`,
+  },
+};
+
+// ============================================
+// CODE EXAMPLES SECTION COMPONENT
+// ============================================
+interface CodeExamplesSectionProps {
+  activeExample: string;
+  setActiveExample: (example: string) => void;
+}
+
+const CodeExamplesSection = ({
+  activeExample,
+  setActiveExample,
+}: CodeExamplesSectionProps) => {
+  const tabs = [
+    { id: "visible", label: "Visible Rows", color: "blue" },
+    { id: "selected", label: "Selected Rows", color: "purple" },
+    { id: "fullState", label: "Full State", color: "amber" },
+    { id: "scroll", label: "Scroll Events", color: "slate" },
+    { id: "telemetry", label: "Telemetry Service", color: "emerald" },
+  ];
+
+  const example = codeExamples[activeExample];
+
+  return (
+    <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-slate-700/50">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <svg
+            className="w-5 h-5 text-emerald-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
+            />
+          </svg>
+          Code Examples
+        </h3>
+        <p className="text-sm text-slate-400 mt-1">
+          See how data extraction is implemented in the codebase
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-1 p-3 bg-slate-900/30 border-b border-slate-700/50">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveExample(tab.id)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              activeExample === tab.id
+                ? `bg-${tab.color}-500/20 text-${tab.color}-400 ring-1 ring-${tab.color}-500/50`
+                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+            }`}
+            style={
+              activeExample === tab.id
+                ? {
+                    backgroundColor:
+                      tab.color === "blue"
+                        ? "rgba(59, 130, 246, 0.2)"
+                        : tab.color === "purple"
+                          ? "rgba(168, 85, 247, 0.2)"
+                          : tab.color === "amber"
+                            ? "rgba(245, 158, 11, 0.2)"
+                            : tab.color === "slate"
+                              ? "rgba(100, 116, 139, 0.2)"
+                              : "rgba(16, 185, 129, 0.2)",
+                    color:
+                      tab.color === "blue"
+                        ? "rgb(96, 165, 250)"
+                        : tab.color === "purple"
+                          ? "rgb(192, 132, 252)"
+                          : tab.color === "amber"
+                            ? "rgb(251, 191, 36)"
+                            : tab.color === "slate"
+                              ? "rgb(148, 163, 184)"
+                              : "rgb(52, 211, 153)",
+                  }
+                : {}
+            }
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="p-4">
+        <div className="mb-3">
+          <h4 className="text-white font-semibold">{example.title}</h4>
+          <p className="text-sm text-slate-400 mt-1">{example.description}</p>
+        </div>
+
+        {/* Code Block */}
+        <div className="relative">
+          <pre className="bg-slate-900 rounded-lg p-4 overflow-auto max-h-80 text-sm">
+            <code className="text-slate-300 font-mono whitespace-pre">
+              {example.code.split("\n").map((line, i) => (
+                <div key={i} className="flex">
+                  <span className="text-slate-600 select-none w-8 text-right pr-4 flex-shrink-0">
+                    {i + 1}
+                  </span>
+                  <span>{highlightCode(line)}</span>
+                </div>
+              ))}
+            </code>
+          </pre>
+
+          {/* Copy button */}
+          <button
+            onClick={() => navigator.clipboard.writeText(example.code)}
+            className="absolute top-2 right-2 p-2 bg-slate-700/50 hover:bg-slate-600/50 rounded-lg transition-colors"
+            title="Copy code"
+          >
+            <svg
+              className="w-4 h-4 text-slate-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple syntax highlighting helper
+const highlightCode = (line: string): React.ReactNode => {
+  // Highlight comments
+  if (line.trim().startsWith("//")) {
+    return <span className="text-slate-500">{line}</span>;
+  }
+
+  // Create spans for different syntax elements
+  const parts: React.ReactNode[] = [];
+  let currentIndex = 0;
+
+  // Simple regex-based highlighting
+  const regex =
+    /(\b(?:const|let|var|function|return|if|for|await|async|useCallback|useRef|interface|type)\b)|(\b(?:string|number|boolean|RowData|TelemetryEvent|GridApi|null)\b)|(\/\/.*$)|('.*?'|".*?")|(\d+)/g;
+
+  let match;
+  while ((match = regex.exec(line)) !== null) {
+    // Add text before match
+    if (match.index > currentIndex) {
+      parts.push(line.slice(currentIndex, match.index));
+    }
+
+    if (match[1]) {
+      // Keyword
+      parts.push(
+        <span key={match.index} className="text-purple-400">
+          {match[0]}
+        </span>,
+      );
+    } else if (match[2]) {
+      // Type
+      parts.push(
+        <span key={match.index} className="text-cyan-400">
+          {match[0]}
+        </span>,
+      );
+    } else if (match[3]) {
+      // Comment
+      parts.push(
+        <span key={match.index} className="text-slate-500">
+          {match[0]}
+        </span>,
+      );
+    } else if (match[4]) {
+      // String
+      parts.push(
+        <span key={match.index} className="text-emerald-400">
+          {match[0]}
+        </span>,
+      );
+    } else if (match[5]) {
+      // Number
+      parts.push(
+        <span key={match.index} className="text-amber-400">
+          {match[0]}
+        </span>,
+      );
+    }
+
+    currentIndex = match.index + match[0].length;
+  }
+
+  // Add remaining text
+  if (currentIndex < line.length) {
+    parts.push(line.slice(currentIndex));
+  }
+
+  return parts.length > 0 ? <>{parts}</> : line;
+};
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
 function App() {
@@ -271,6 +710,7 @@ function App() {
   const [gridApi, setGridApi] = useState<GridApi<RowData> | null>(null);
   const [rowData] = useState<RowData[]>(generateSampleData);
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([]);
+  const [activeCodeExample, setActiveCodeExample] = useState<string>("visible");
   const [stats, setStats] = useState({
     totalEvents: 0,
     visibleRows: 0,
@@ -462,7 +902,7 @@ function App() {
   );
 
   // Scroll handler with debounce
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onBodyScroll = useCallback(
     (event: BodyScrollEvent) => {
@@ -548,8 +988,9 @@ function App() {
 
       {/* Main Content */}
       <main className="max-w-[1600px] mx-auto px-6 py-6">
+        {/* Desktop: 3-column layout with sidebar | Mobile: single column */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Grid Section */}
+          {/* Left Column - Grid & Buttons */}
           <div className="lg:col-span-2 space-y-4">
             {/* Action Buttons */}
             <div className="flex flex-wrap gap-3">
@@ -642,6 +1083,15 @@ function App() {
               </div>
             </div>
 
+            {/* Telemetry Panel - Mobile Only (visible on mobile, hidden on desktop) */}
+            <div className="lg:hidden">
+              <TelemetryPanel
+                telemetryEvents={telemetryEvents}
+                clearTelemetry={clearTelemetry}
+                height="h-[350px]"
+              />
+            </div>
+
             {/* Info Panel */}
             <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 p-5">
               <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
@@ -687,51 +1137,22 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* Code Examples Section */}
+            <CodeExamplesSection
+              activeExample={activeCodeExample}
+              setActiveExample={setActiveCodeExample}
+            />
           </div>
 
-          {/* Telemetry Panel */}
-          <div className="lg:col-span-1">
-            <div className="bg-slate-800/30 rounded-xl border border-slate-700/50 h-[700px] flex flex-col">
-              <div className="p-4 border-b border-slate-700/50 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                  </span>
-                  Telemetry Stream
-                </h2>
-                <button
-                  onClick={clearTelemetry}
-                  className="text-xs text-slate-400 hover:text-white transition-colors"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-auto p-4 space-y-3">
-                {telemetryEvents.length === 0 ? (
-                  <div className="text-center text-slate-500 py-8">
-                    <svg
-                      className="w-12 h-12 mx-auto mb-3 opacity-50"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                      />
-                    </svg>
-                    <p>Interact with the grid to see telemetry events</p>
-                  </div>
-                ) : (
-                  telemetryEvents.map((event) => (
-                    <EventCard key={event.id} event={event} />
-                  ))
-                )}
-              </div>
+          {/* Right Column - Telemetry Panel (Desktop Only) */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div className="sticky top-24">
+              <TelemetryPanel
+                telemetryEvents={telemetryEvents}
+                clearTelemetry={clearTelemetry}
+                height="h-[700px]"
+              />
             </div>
           </div>
         </div>
